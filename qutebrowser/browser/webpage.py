@@ -29,7 +29,7 @@ from PyQt5.QtPrintSupport import QPrintDialog
 from PyQt5.QtWebKitWidgets import QWebPage
 
 from qutebrowser.config import config
-from qutebrowser.browser import http
+from qutebrowser.browser import http, tabhistory
 from qutebrowser.browser.network import networkmanager
 from qutebrowser.utils import (message, usertypes, log, jinja, qtutils, utils,
                                objreg)
@@ -212,6 +212,11 @@ class BrowserPage(QWebPage):
             nam.setParent(download_manager)
         else:
             nam.shutdown()
+
+    def load_history(self, entries):
+        """Load the history from a list of TabHistoryItem objects."""
+        stream, _data = tabhistory.serialize(entries)
+        qtutils.deserialize_stream(stream, self.history())
 
     def display_content(self, reply, mimetype):
         """Display a QNetworkReply with an explicitely set mimetype."""
