@@ -1,0 +1,139 @@
+# vim: ft=python fileencoding=utf-8 sts=4 sw=4 et:
+
+# Copyright 2015 Florian Bruhin (The Compiler) <mail@qutebrowser.org>
+#
+# This file is part of qutebrowser.
+#
+# qutebrowser is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# qutebrowser is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with qutebrowser.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Management of sessions - saved tabs/windows."""
+
+import os.path
+
+from PyQt5.QtCore import QStandardPaths, QUrl
+import yaml
+try:
+    from yaml import CSafeLoader as YamlLoader, CDumper as YamlDumper
+except ImportError:
+    from yaml import SafeLoader as YamlLoader, Dumper as YamlDumper
+
+from qutebrowser.browser import tabhistory
+from qutebrowser.mainwindow import mainwindow
+from qutebrowser.utils import standarddir, objreg, qtutils
+from qutebrowser.commands import cmdexc, cmdutils
+
+
+class SessionError(Exception):
+
+    """Exception raised when a session failed to load/save."""
+
+
+def _get_session_path(name, check_exists=False):
+    """Get the session path based on a session name or absolute path.
+
+    Args:
+        name: The name of the session.
+        check_exists: Whether it should also be checked if the sessio exists.
+    """
+    base_path = os.path.join(standarddir.get(QStandardPaths.DataLocation),
+                             'sessions')
+
+    path = os.path.expanduser(name)
+    if os.path.isabs(path) and ((not check_exists) or os.path.exists(path)):
+        return path
+    else:
+        return os.path.join(base_path, name + '.yml')
+
+
+def save(name):
+    """Save a named session."""
+    data = {'windows': []}
+    for win_id in objreg.window_registry:
+        tabbed_browser = objreg.get('tabbed-browser', scope='window',
+                                    window=win_id)
+        win_data = {'tabs': []}
+        for tab in tabbed_browser.widgets():
+            tab_data = {'history': []}
+            history = tab.page().history()
+            for idx, item in enumerate(history.items()):
+                qtutils.ensure_valid(item)
+                item_data = {
+                    'url': bytes(item.url().toEncoded()).decode('ascii'),
+                    'title': item.title()
+                }
+                if history.currentItemIndex() == idx:
+                    item_data['active'] = True
+                tab_data['history'].append(item_data)
+            win_data['tabs'].append(tab_data)
+        data['windows'].append(win_data)
+
+    path = _get_session_path(name)
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False)
+    except (OSError, UnicodeEncodeError, yaml.YAMLError) as e:
+        raise SessionError(e)
+
+
+def load(name):
+    """Load a named session."""
+    path = _get_session_path(name, check_exists=True)
+    try:
+        with open(path, encoding='utf-8') as f:
+            data = yaml.load(f, Loader=YamlLoader)
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as e:
+        raise SessionError(e)
+    for win in data['windows']:
+        win_id = mainwindow.MainWindow.spawn()
+        tabbed_browser = objreg.get('tabbed-browser', scope='window',
+                                    window=win_id)
+        for tab in win['tabs']:
+            entries = []
+            new_tab = tabbed_browser.tabopen()
+            for histentry in tab['history']:
+                active = histentry.get('active', False)
+                entry = tabhistory.TabHistoryItem(
+                    QUrl.fromEncoded(histentry['url'].encode('ascii')),
+                    histentry['title'], active)
+                entries.append(entry)
+            try:
+                new_tab.page().load_history(entries)
+            except ValueError as e:
+                raise SessionError(e)
+
+
+@cmdutils.register()
+def session_load(name):
+    """Load a session.
+
+    Args:
+        name: The name of the session.
+    """
+    try:
+        load(name)
+    except SessionError as e:
+        raise cmdexc.CommandError("Error while loading session: {}".format(e))
+
+
+@cmdutils.register(name=['session-save', 'w'])
+def session_save(name='default'):
+    """Load a session.
+
+    Args:
+        name: The name of the session.
+    """
+    try:
+        save(name)
+    except SessionError as e:
+        raise cmdexc.CommandError("Error while saving session: {}".format(e))

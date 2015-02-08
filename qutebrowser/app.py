@@ -43,7 +43,8 @@ from qutebrowser.config import style, config, websettings, configexc
 from qutebrowser.browser import quickmarks, cookies, cache, adblock, history
 from qutebrowser.browser.network import qutescheme, proxy
 from qutebrowser.mainwindow import mainwindow
-from qutebrowser.misc import crashdialog, readline, ipc, earlyinit, savemanager
+from qutebrowser.misc import (crashdialog, readline, ipc, earlyinit,
+                              savemanager, sessions)
 from qutebrowser.misc import utilcmds  # pylint: disable=unused-import
 from qutebrowser.keyinput import modeman
 from qutebrowser.utils import (log, version, message, utils, qtutils, urlutils,
