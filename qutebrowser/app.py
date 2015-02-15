@@ -180,6 +180,8 @@ class Application(QApplication):
         history.init()
         log.init.debug("Initializing crashlog...")
         self._handle_segfault()
+        log.init.debug("Initializing sessions...")
+        sessions.init()
         log.init.debug("Initializing js-bridge...")
         js_bridge = qutescheme.JSBridge(self)
         objreg.register('js-bridge', js_bridge)
@@ -262,9 +264,21 @@ class Application(QApplication):
             except (configexc.Error, configparser.Error) as e:
                 message.error('current', "set: {} - {}".format(
                     e.__class__.__name__, e))
+        self._load_session()
         self.process_pos_args(self._args.command)
         self._open_startpage()
         self._open_quickstart()
+
+    def _load_session(self):
+        """Load the default session."""
+        try:
+            sessions.load('default')
+        except sessions.SessionNotFoundError:
+            pass
+        except sessions.SessionError as e:
+            log.init.exception("Failed to load default session")
+        else:
+            sessions.delete('default')
 
     def _get_window(self, via_ipc, force_window=False, force_tab=False):
         """Helper function for process_pos_args to get a window id.

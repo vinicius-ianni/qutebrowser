@@ -20,8 +20,10 @@
 """Management of sessions - saved tabs/windows."""
 
 import os.path
+import functools
 
-from PyQt5.QtCore import QStandardPaths, QUrl
+from PyQt5.QtCore import QStandardPaths, QUrl, QObject
+from PyQt5.QtWidgets import QApplication
 import yaml
 try:
     from yaml import CSafeLoader as YamlLoader, CDumper as YamlDumper
@@ -30,7 +32,7 @@ except ImportError:
 
 from qutebrowser.browser import tabhistory
 from qutebrowser.mainwindow import mainwindow
-from qutebrowser.utils import standarddir, objreg, qtutils
+from qutebrowser.utils import standarddir, objreg, qtutils, log
 from qutebrowser.commands import cmdexc, cmdutils
 
 
@@ -39,12 +41,17 @@ class SessionError(Exception):
     """Exception raised when a session failed to load/save."""
 
 
+class SessionNotFoundError(SessionError):
+
+    """Exception raised when a session to be loaded was not found."""
+
+
 def _get_session_path(name, check_exists=False):
     """Get the session path based on a session name or absolute path.
 
     Args:
         name: The name of the session.
-        check_exists: Whether it should also be checked if the sessio exists.
+        check_exists: Whether it should also be checked if the session exists.
     """
     base_path = os.path.join(standarddir.get(QStandardPaths.DataLocation),
                              'sessions')
@@ -53,11 +60,18 @@ def _get_session_path(name, check_exists=False):
     if os.path.isabs(path) and ((not check_exists) or os.path.exists(path)):
         return path
     else:
-        return os.path.join(base_path, name + '.yml')
+        path = os.path.join(base_path, name + '.yml')
+        if check_exists and not os.path.exists(path):
+            raise SessionNotFoundError(path)
+        else:
+            return path
 
 
 def save(name):
     """Save a named session."""
+    path = _get_session_path(name)
+
+    log.misc.debug("Saving session {} to {}...".format(name, path))
     data = {'windows': []}
     for win_id in objreg.window_registry:
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
@@ -77,8 +91,6 @@ def save(name):
                 tab_data['history'].append(item_data)
             win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
-
-    path = _get_session_path(name)
     try:
         with open(path, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False)
@@ -94,8 +106,17 @@ def load(name):
             data = yaml.load(f, Loader=YamlLoader)
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as e:
         raise SessionError(e)
+    log.misc.debug("Loading session {} from {}...".format(name, path))
+    win_id = None
     for win in data['windows']:
-        win_id = mainwindow.MainWindow.spawn()
+        if win_id is None:
+            try:
+                win_id = objreg.get('main-window', scope='window',
+                                    window='last-focused').win_id
+            except objreg.NoWindow:
+                win_id = mainwindow.MainWindow.spawn()
+        else:
+            win_id = mainwindow.MainWindow.spawn()
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
         for tab in win['tabs']:
@@ -113,6 +134,12 @@ def load(name):
                 raise SessionError(e)
 
 
+def delete(name):
+    """Delete a session."""
+    path = _get_session_path(name, check_exists=True)
+    os.remove(path)
+
+
 @cmdutils.register()
 def session_load(name):
     """Load a session.
@@ -122,13 +149,15 @@ def session_load(name):
     """
     try:
         load(name)
+    except SessionNotFoundError:
+        raise cmdexc.CommandError("Session {} not found!".format(name))
     except SessionError as e:
         raise cmdexc.CommandError("Error while loading session: {}".format(e))
 
 
 @cmdutils.register(name=['session-save', 'w'])
 def session_save(name='default'):
-    """Load a session.
+    """Save a session.
 
     Args:
         name: The name of the session.
@@ -137,3 +166,35 @@ def session_save(name='default'):
         save(name)
     except SessionError as e:
         raise cmdexc.CommandError("Error while saving session: {}".format(e))
+
+
+@cmdutils.register(name='wq')
+def save_and_quit(name='default'):
+    """Save open pages and quit.
+
+    Args:
+        name: The name of the session.
+    """
+    session_save(name)
+    QApplication.closeAllWindows()
+
+
+@cmdutils.register()
+def session_delete(name):
+    """Delete a session.
+
+    Args:
+        name: The name of the session.
+    """
+    try:
+        delete(name)
+    except OSError as e:
+        raise cmdexc.CommandError("Error while deleting session: {}".format(e))
+
+
+def init():
+    """Initialize sessions."""
+    save_manager = objreg.get('save-manager')
+    save_manager.add_saveable(
+        'default-session', functools.partial(save, 'default'),
+        config_opt=('general', 'save-session'))
