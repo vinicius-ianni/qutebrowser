@@ -275,7 +275,7 @@ class Application(QApplication):
             sessions.load('default')
         except sessions.SessionNotFoundError:
             pass
-        except sessions.SessionError as e:
+        except sessions.SessionError:
             log.init.exception("Failed to load default session")
         else:
             sessions.delete('default')
