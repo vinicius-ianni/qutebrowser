@@ -22,7 +22,7 @@
 import os.path
 import functools
 
-from PyQt5.QtCore import QStandardPaths, QUrl, QObject
+from PyQt5.QtCore import QStandardPaths, QUrl
 from PyQt5.QtWidgets import QApplication
 import yaml
 try:
@@ -92,7 +92,7 @@ def save(name):
             win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
     try:
-        with open(path, 'w', encoding='utf-8') as f:
+        with qtutils.savefile_open(path) as f:
             yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False)
     except (OSError, UnicodeEncodeError, yaml.YAMLError) as e:
         raise SessionError(e)
