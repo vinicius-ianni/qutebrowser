@@ -111,7 +111,7 @@ def save(name):
                     pos = user_data['scroll-pos']
                     tab_data['zoom'] = user_data['zoom']
                     tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
-                win_data['tabs'].append(tab_data)
+            win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
     try:
         with qtutils.savefile_open(path) as f:
