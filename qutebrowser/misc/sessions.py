@@ -77,6 +77,16 @@ def _get_session_path(name, check_exists=False):
             return path
 
 
+def exists(name):
+    """Check if a named session exists."""
+    try:
+        _get_session_path(name, check_exists=True)
+    except SessionNotFoundError:
+        return False
+    else:
+        return True
+
+
 def save(name):
     """Save a named session."""
     path = _get_session_path(name)
@@ -134,16 +144,8 @@ def load(name):
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as e:
         raise SessionError(e)
     log.misc.debug("Loading session {} from {}...".format(name, path))
-    win_id = None
     for win in data['windows']:
-        if win_id is None:
-            try:
-                win_id = objreg.get('main-window', scope='window',
-                                    window='last-focused').win_id
-            except objreg.NoWindow:
-                win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
-        else:
-            win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
+        win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
         main_window = objreg.get('main-window', scope='window', window=win_id)
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)

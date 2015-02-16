@@ -202,11 +202,13 @@ class Application(QApplication):
         log.init.debug("Initializing cache...")
         diskcache = cache.DiskCache(self)
         objreg.register('cache', diskcache)
-        log.init.debug("Initializing main window...")
-        win_id = mainwindow.MainWindow.spawn(
-            False if self._args.nowindow else True)
-        main_window = objreg.get('main-window', scope='window', window=win_id)
-        self.setActiveWindow(main_window)
+        if not sessions.exists(self._args.session):
+            log.init.debug("Initializing main window...")
+            win_id = mainwindow.MainWindow.spawn(
+                False if self._args.nowindow else True)
+            main_window = objreg.get('main-window', scope='window',
+                                     window=win_id)
+            self.setActiveWindow(main_window)
 
     def _init_icon(self):
         """Initialize the icon of qutebrowser."""
@@ -264,15 +266,19 @@ class Application(QApplication):
             except (configexc.Error, configparser.Error) as e:
                 message.error('current', "set: {} - {}".format(
                     e.__class__.__name__, e))
-        self._load_session()
+        self._load_session(self._args.session)
         self.process_pos_args(self._args.command)
         self._open_startpage()
         self._open_quickstart()
 
-    def _load_session(self):
-        """Load the default session."""
+    def _load_session(self, name):
+        """Load the default session.
+
+        Args:
+            name: The name of the session to load.
+        """
         try:
-            sessions.load('default')
+            sessions.load(name)
         except sessions.SessionNotFoundError:
             pass
         except sessions.SessionError:
