@@ -23,7 +23,8 @@ import os
 import os.path
 import functools
 
-from PyQt5.QtCore import pyqtSignal, QStandardPaths, QUrl, QObject, QPoint
+from PyQt5.QtCore import (pyqtSignal, QStandardPaths, QUrl, QObject, QPoint,
+                          QTimer)
 from PyQt5.QtWidgets import QApplication
 import yaml
 try:
@@ -87,9 +88,16 @@ def exists(name):
         return True
 
 
-def _save_tab(tab):
-    """Get a dict with data for a single tab."""
+def _save_tab(tab, active):
+    """Get a dict with data for a single tab.
+
+    Args:
+        tab: The WebView to save.
+        active: Whether the tab is currently active.
+    """
     data = {'history': []}
+    if active:
+        data['active'] = True
     history = tab.page().history()
     for idx, item in enumerate(history.items()):
         qtutils.ensure_valid(item)
@@ -121,8 +129,14 @@ def _save_all():
                                     window=win_id)
         main_window = objreg.get('main-window', scope='window', window=win_id)
         win_data = {}
+        active_window = QApplication.instance().activeWindow()
+        if getattr(active_window, 'win_id', None) == win_id:
+            win_data['active'] = True
         win_data['geometry'] = bytes(main_window.saveGeometry())
-        win_data['tabs'] = [_save_tab(tab) for tab in tabbed_browser.widgets()]
+        win_data['tabs'] = []
+        for i, tab in enumerate(tabbed_browser.widgets()):
+            active = i == tabbed_browser.currentIndex()
+            win_data['tabs'].append(_save_tab(tab, active))
         data['windows'].append(win_data)
     return data
 
@@ -179,9 +193,16 @@ def load(name):
         win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
-        for tab in win['tabs']:
+        tab_to_focus = None
+        for i, tab in enumerate(win['tabs']):
             new_tab = tabbed_browser.tabopen()
             _load_tab(new_tab, tab)
+            if tab.get('active', False):
+                tab_to_focus = i
+        if tab_to_focus is not None:
+            tabbed_browser.setCurrentIndex(tab_to_focus)
+        if win.get('active', False):
+            QTimer.singleShot(0, tabbed_browser.activateWindow)
 
 
 def delete(name):
