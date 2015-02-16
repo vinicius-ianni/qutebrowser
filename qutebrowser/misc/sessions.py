@@ -85,7 +85,9 @@ def save(name):
     for win_id in objreg.window_registry:
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
-        win_data = {'tabs': []}
+        main_window = objreg.get('main-window', scope='window', window=win_id)
+        geometry = bytes(main_window.saveGeometry())
+        win_data = {'tabs': [], 'geometry': geometry}
         for tab in tabbed_browser.widgets():
             tab_data = {'history': []}
             history = tab.page().history()
@@ -126,9 +128,10 @@ def load(name):
                 win_id = objreg.get('main-window', scope='window',
                                     window='last-focused').win_id
             except objreg.NoWindow:
-                win_id = mainwindow.MainWindow.spawn()
+                win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
         else:
-            win_id = mainwindow.MainWindow.spawn()
+            win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
+        main_window = objreg.get('main-window', scope='window', window=win_id)
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
         for tab in win['tabs']:

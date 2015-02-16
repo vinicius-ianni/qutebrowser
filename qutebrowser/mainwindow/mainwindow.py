@@ -55,7 +55,14 @@ class MainWindow(QWidget):
         _commandrunner: The main CommandRunner instance.
     """
 
-    def __init__(self, win_id, parent=None):
+    def __init__(self, win_id, geometry=None, parent=None):
+        """Create a new main window.
+
+        Args:
+            win_id: The ID the new window whouls get.
+            geometry: The geometry to load, as a bytes-object (or None).
+            parent: The parent the window should get.
+        """
         super().__init__(parent)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self._commandrunner = None
@@ -72,8 +79,10 @@ class MainWindow(QWidget):
                         window=win_id)
 
         self.setWindowTitle('qutebrowser')
-        if win_id == 0:
-            self._load_geometry()
+        if geometry is not None:
+            self._load_geometry(geometry)
+        elif win_id == 0:
+            self._load_state_geometry()
         else:
             self._set_default_geometry()
         log.init.debug("Initial mainwindow geometry: {}".format(
@@ -135,11 +144,12 @@ class MainWindow(QWidget):
             self.resize_completion()
 
     @classmethod
-    def spawn(cls, show=True):
+    def spawn(cls, geometry=None, show=True):
         """Create a new main window.
 
         Args:
             show: Show the window after creating.
+            geometry: The geometry to load, as a bytes-object.
 
         Return:
             The new window id.
@@ -150,12 +160,11 @@ class MainWindow(QWidget):
             win.show()
         return win_id
 
-    def _load_geometry(self):
+    def _load_state_geometry(self):
         """Load the geometry from the state file."""
         state_config = objreg.get('state-config')
         try:
             data = state_config['geometry']['mainwindow']
-            log.init.debug("Restoring mainwindow from {}".format(data))
             geom = base64.b64decode(data, validate=True)
         except KeyError:
             # First start
@@ -164,14 +173,18 @@ class MainWindow(QWidget):
             log.init.exception("Error while reading geometry")
             self._set_default_geometry()
         else:
-            try:
-                ok = self.restoreGeometry(geom)
-            except KeyError:
-                log.init.exception("Error while restoring geometry.")
-                self._set_default_geometry()
-            if not ok:
-                log.init.warning("Error while restoring geometry.")
-                self._set_default_geometry()
+            self._load_geometry(geom)
+
+    def _load_geometry(self, geom):
+        """Load geometry from a bytes object.
+
+        If loading fails, loads default geometry.
+        """
+        log.init.debug("Loading mainwindow from {}".format(geom))
+        ok = self.restoreGeometry(geom)
+        if not ok:
+            log.init.warning("Error while loading geometry.")
+            self._set_default_geometry()
 
     def _connect_resize_completion(self):
         """Connect the resize_completion signal and resize it once."""
