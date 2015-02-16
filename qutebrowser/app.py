@@ -181,7 +181,8 @@ class Application(QApplication):
         log.init.debug("Initializing crashlog...")
         self._handle_segfault()
         log.init.debug("Initializing sessions...")
-        sessions.init(self)
+        session_manager = sessions.SessionManager(self)
+        objreg.register('session-manager', session_manager)
         log.init.debug("Initializing js-bridge...")
         js_bridge = qutescheme.JSBridge(self)
         objreg.register('js-bridge', js_bridge)
@@ -202,7 +203,7 @@ class Application(QApplication):
         log.init.debug("Initializing cache...")
         diskcache = cache.DiskCache(self)
         objreg.register('cache', diskcache)
-        if not sessions.exists(self._args.session):
+        if not session_manager.exists(self._args.session):
             log.init.debug("Initializing main window...")
             win_id = mainwindow.MainWindow.spawn(
                 False if self._args.nowindow else True)
@@ -277,14 +278,15 @@ class Application(QApplication):
         Args:
             name: The name of the session to load.
         """
+        session_manager = objreg.get('session-manager')
         try:
-            sessions.load(name)
+            session_manager.load(name)
         except sessions.SessionNotFoundError:
             pass
         except sessions.SessionError:
             log.init.exception("Failed to load default session")
         else:
-            sessions.delete('default')
+            session_manager.delete('default')
 
     def _get_window(self, via_ipc, force_window=False, force_tab=False):
         """Helper function for process_pos_args to get a window id.

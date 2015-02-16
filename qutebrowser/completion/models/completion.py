@@ -25,7 +25,6 @@ from qutebrowser.config import config, configdata
 from qutebrowser.utils import log, qtutils, objreg
 from qutebrowser.commands import cmdutils
 from qutebrowser.completion.models import base
-from qutebrowser.misc import sessions
 
 
 class SettingSectionCompletionModel(base.BaseCompletionModel):
@@ -248,5 +247,5 @@ class SessionCompletionModel(base.BaseCompletionModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         cat = self.new_category("Sessions")
-        for name in sessions.list_sessions():
+        for name in objreg.get('session-manager').list_sessions():
             self.new_item(cat, name)
