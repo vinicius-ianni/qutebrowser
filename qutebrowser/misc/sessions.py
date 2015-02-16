@@ -98,14 +98,19 @@ def save(name):
                     'url': bytes(item.url().toEncoded()).decode('ascii'),
                     'title': item.title()
                 }
+                user_data = item.userData()
                 if history.currentItemIndex() == idx:
                     item_data['active'] = True
+                    if user_data is None:
+                        pos = tab.page().mainFrame().scrollPosition()
+                        tab_data['zoom'] = tab.zoomFactor()
+                        tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
                 tab_data['history'].append(item_data)
-                user_data = item.userData()
+
                 if user_data is not None:
                     pos = user_data['scroll-pos']
                     tab_data['zoom'] = user_data['zoom']
-                    tab_data['scroll-pos'] = [pos.x(), pos.y()]
+                    tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
                 win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
     try:
@@ -148,7 +153,8 @@ def load(name):
                 if 'zoom' in tab:
                     user_data['zoom'] = tab['zoom']
                 if 'scroll-pos' in tab:
-                    user_data['scroll-pos'] = QPoint(*tab['scroll-pos'])
+                    pos = tab['scroll-pos']
+                    user_data['scroll-pos'] = QPoint(pos['x'], pos['y'])
                 active = histentry.get('active', False)
                 entry = tabhistory.TabHistoryItem(
                     QUrl.fromEncoded(histentry['url'].encode('ascii')),

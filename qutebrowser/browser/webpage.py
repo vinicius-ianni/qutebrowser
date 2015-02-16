@@ -21,7 +21,8 @@
 
 import functools
 
-from PyQt5.QtCore import pyqtSlot, pyqtSignal, PYQT_VERSION, Qt, QUrl, QPoint
+from PyQt5.QtCore import (pyqtSlot, pyqtSignal, PYQT_VERSION, Qt, QUrl, QPoint,
+                          QTimer)
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QFileDialog
@@ -224,6 +225,15 @@ class BrowserPage(QWebPage):
         qtutils.deserialize_stream(stream, history)
         for i, data in enumerate(user_data):
             history.itemAt(i).setUserData(data)
+        cur_data = history.currentItem().userData()
+        if cur_data is not None:
+            frame = self.mainFrame()
+            if 'zoom' in cur_data:
+                frame.setZoomFactor(cur_data['zoom'])
+            if ('scroll-pos' in cur_data and
+                    frame.scrollPosition() == QPoint(0, 0)):
+                QTimer.singleShot(0, functools.partial(
+                    frame.setScrollPosition, cur_data['scroll-pos']))
 
     def display_content(self, reply, mimetype):
         """Display a QNetworkReply with an explicitely set mimetype."""
