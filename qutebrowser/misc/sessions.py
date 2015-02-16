@@ -113,6 +113,7 @@ def save(name):
                     tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
             win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
+    log.misc.vdebug("Saving data: {}".format(data))
     try:
         with qtutils.savefile_open(path) as f:
             yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False,
