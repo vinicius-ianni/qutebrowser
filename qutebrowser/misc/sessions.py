@@ -103,8 +103,11 @@ def _save_tab(tab, active):
         qtutils.ensure_valid(item)
         item_data = {
             'url': bytes(item.url().toEncoded()).decode('ascii'),
-            'title': item.title()
+            'title': item.title(),
         }
+        if item.originalUrl() != item.url():
+            encoded = item.originalUrl().toEncoded()
+            item_data['original-url'] = bytes(encoded).decode('ascii')
         user_data = item.userData()
         if history.currentItemIndex() == idx:
             item_data['active'] = True
@@ -169,9 +172,15 @@ def _load_tab(new_tab, data):
             pos = data['scroll-pos']
             user_data['scroll-pos'] = QPoint(pos['x'], pos['y'])
         active = histentry.get('active', False)
+        url = QUrl.fromEncoded(histentry['url'].encode('ascii'))
+        if 'original-url' in histentry:
+            orig_url = QUrl.fromEncoded(
+                histentry['original-url'].encode('ascii'))
+        else:
+            orig_url = url
         entry = tabhistory.TabHistoryItem(
-            QUrl.fromEncoded(histentry['url'].encode('ascii')),
-            histentry['title'], active, user_data)
+            url=url, original_url=orig_url, title=histentry['title'],
+            active=active, user_data=user_data)
         entries.append(entry)
     try:
         new_tab.page().load_history(entries)

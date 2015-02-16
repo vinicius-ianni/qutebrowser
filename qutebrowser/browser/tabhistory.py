@@ -40,16 +40,23 @@ class TabHistoryItem:
         user_data: The user data for this item.
     """
 
-    def __init__(self, url, title, active=False, user_data=None):
+    def __init__(self, url, original_url, title, active=False, user_data=None):
         self.url = url
+        self.original_url = original_url
         self.title = title
         self.active = active
         self.user_data = user_data
 
     def __repr__(self):
         return utils.get_repr(self, constructor=True, url=self.url,
-                              title=self.title, active=self.active,
-                              user_data=self.user_data)
+                              original_url=self.original_url, title=self.title,
+                              active=self.active, user_data=self.user_data)
+
+
+def _encode_url(url):
+    """Encode an QUrl suitable to pass to QWebHistory."""
+    data = bytes(QUrl.toPercentEncoding(url.toString(), b':/#?&+=@%*'))
+    return data.decode('ascii')
 
 
 def serialize(items):
@@ -96,14 +103,12 @@ def serialize(items):
 
     for i, item in enumerate(items):
         ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
-        url_str = item.url.toString()
-        url_bytes = bytes(QUrl.toPercentEncoding(url_str, b':/#?&+=@%*'))
         ## urlString
-        stream.writeQString(url_bytes.decode('ascii'))
+        stream.writeQString(_encode_url(item.url))
         ## title
         stream.writeQString(item.title)
         ## originalURLString
-        stream.writeQString(url_str)
+        stream.writeQString(_encode_url(item.original_url))
 
         ### Source/WebCore/history/HistoryItem.cpp decodeBackForwardTree
         ## backForwardTreeEncodingVersion

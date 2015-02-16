@@ -38,11 +38,15 @@ class SerializeHistoryTests(unittest.TestCase):
         self.history = self.page.history()
         self.assertEqual(self.history.count(), 0)
 
-        self.items = [Item(QUrl('http://www.heise.de/'), 'heise'),
-                      Item(QUrl('http://example.com/%E2%80%A6'), 'percent',
-                           active=True),
-                      Item(QUrl('http://example.com/?foo=bar'), 'arg',
-                           user_data={'foo': 23, 'bar': 42})]
+        self.items = [Item(QUrl('https://www.heise.de/'),
+                           QUrl('http://www.heise.de/'),
+                           'heise'),
+                      Item(QUrl('http://example.com/%E2%80%A6'),
+                           QUrl('http://example.com/%E2%80%A6'),
+                           'percent', active=True),
+                      Item(QUrl('http://example.com/?foo=bar'),
+                           QUrl('http://original.url.example.com/'),
+                           'arg', user_data={'foo': 23, 'bar': 42})]
         stream, _data, self.user_data = tabhistory.serialize(self.items)
         qtutils.deserialize_stream(stream, self.history)
 
@@ -75,6 +79,13 @@ class SerializeHistoryTests(unittest.TestCase):
             with self.subTest(i=i, item=item):
                 self.assertEqual(self.history.itemAt(i).url(), item.url)
 
+    def test_original_urls(self):
+        """Check if the original URLs were loaded correctly."""
+        for i, item in enumerate(self.items):
+            with self.subTest(i=i, item=item):
+                self.assertEqual(self.history.itemAt(i).originalUrl(),
+                                 item.original_url)
+
     def test_titles(self):
         """Check if the titles were loaded correctly."""
         for i, item in enumerate(self.items):
@@ -93,15 +104,15 @@ class SerializeHistorySpecialTests(unittest.TestCase):
 
     def test_no_active_item(self):
         """Check tabhistory.serialize with no active item."""
-        items = [Item(QUrl(), '')]
+        items = [Item(QUrl(), QUrl(), '')]
         with self.assertRaises(ValueError):
             tabhistory.serialize(items)
 
     def test_two_active_items(self):
         """Check tabhistory.serialize with two active items."""
-        items = [Item(QUrl(), '', active=True),
-                 Item(QUrl(), ''),
-                 Item(QUrl(), '', active=True)]
+        items = [Item(QUrl(), QUrl(), '', active=True),
+                 Item(QUrl(), QUrl(), ''),
+                 Item(QUrl(), QUrl(), '', active=True)]
         with self.assertRaises(ValueError):
             tabhistory.serialize(items)
 
