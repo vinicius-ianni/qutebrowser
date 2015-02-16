@@ -115,7 +115,8 @@ def save(name):
         data['windows'].append(win_data)
     try:
         with qtutils.savefile_open(path) as f:
-            yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False)
+            yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False,
+                      encoding='utf-8', allow_unicode=True)
     except (OSError, UnicodeEncodeError, yaml.YAMLError) as e:
         raise SessionError(e)
     else:
