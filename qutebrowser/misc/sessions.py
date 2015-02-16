@@ -19,6 +19,7 @@
 
 """Management of sessions - saved tabs/windows."""
 
+import os
 import os.path
 import functools
 
@@ -234,6 +235,10 @@ def session_delete(name):
 def init(parent=None):
     global completion_updater
     """Initialize sessions."""
+    session_path = os.path.join(standarddir.get(QStandardPaths.DataLocation),
+                                'sessions')
+    if not os.path.exists(session_path):
+        os.mkdir(session_path)
     save_manager = objreg.get('save-manager')
     save_manager.add_saveable(
         'default-session', functools.partial(save, 'default'),
