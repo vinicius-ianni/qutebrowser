@@ -27,9 +27,9 @@ from PyQt5.QtCore import pyqtSignal, QStandardPaths, QUrl, QObject, QPoint
 from PyQt5.QtWidgets import QApplication
 import yaml
 try:
-    from yaml import CSafeLoader as YamlLoader, CDumper as YamlDumper
+    from yaml import CSafeLoader as YamlLoader, CSafeDumper as YamlDumper
 except ImportError:
-    from yaml import SafeLoader as YamlLoader, Dumper as YamlDumper
+    from yaml import SafeLoader as YamlLoader, SafeDumper as YamlDumper
 
 from qutebrowser.browser import tabhistory
 from qutebrowser.utils import standarddir, objreg, qtutils, log, usertypes
