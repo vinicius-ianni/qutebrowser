@@ -144,7 +144,7 @@ class MainWindow(QWidget):
             self.resize_completion()
 
     @classmethod
-    def spawn(cls, geometry=None, show=True):
+    def spawn(cls, show=True, geometry=None):
         """Create a new main window.
 
         Args:
@@ -155,7 +155,7 @@ class MainWindow(QWidget):
             The new window id.
         """
         win_id = next(win_id_gen)
-        win = MainWindow(win_id)
+        win = MainWindow(win_id, geometry=geometry)
         if show:
             win.show()
         return win_id

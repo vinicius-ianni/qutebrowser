@@ -87,42 +87,52 @@ def exists(name):
         return True
 
 
-def save(name):
-    """Save a named session."""
-    path = _get_session_path(name)
+def _save_tab(tab):
+    """Get a dict with data for a single tab."""
+    data = {'history': []}
+    history = tab.page().history()
+    for idx, item in enumerate(history.items()):
+        qtutils.ensure_valid(item)
+        item_data = {
+            'url': bytes(item.url().toEncoded()).decode('ascii'),
+            'title': item.title()
+        }
+        user_data = item.userData()
+        if history.currentItemIndex() == idx:
+            item_data['active'] = True
+            if user_data is None:
+                pos = tab.page().mainFrame().scrollPosition()
+                data['zoom'] = tab.zoomFactor()
+                data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
+        data['history'].append(item_data)
 
-    log.misc.debug("Saving session {} to {}...".format(name, path))
+        if user_data is not None:
+            pos = user_data['scroll-pos']
+            data['zoom'] = user_data['zoom']
+            data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
+    return data
+
+
+def _save_all():
+    """Get a dict with data for all windows/tabs."""
     data = {'windows': []}
     for win_id in objreg.window_registry:
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
         main_window = objreg.get('main-window', scope='window', window=win_id)
-        geometry = bytes(main_window.saveGeometry())
-        win_data = {'tabs': [], 'geometry': geometry}
-        for tab in tabbed_browser.widgets():
-            tab_data = {'history': []}
-            history = tab.page().history()
-            for idx, item in enumerate(history.items()):
-                qtutils.ensure_valid(item)
-                item_data = {
-                    'url': bytes(item.url().toEncoded()).decode('ascii'),
-                    'title': item.title()
-                }
-                user_data = item.userData()
-                if history.currentItemIndex() == idx:
-                    item_data['active'] = True
-                    if user_data is None:
-                        pos = tab.page().mainFrame().scrollPosition()
-                        tab_data['zoom'] = tab.zoomFactor()
-                        tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
-                tab_data['history'].append(item_data)
-
-                if user_data is not None:
-                    pos = user_data['scroll-pos']
-                    tab_data['zoom'] = user_data['zoom']
-                    tab_data['scroll-pos'] = {'x': pos.x(), 'y': pos.y()}
-            win_data['tabs'].append(tab_data)
+        win_data = {}
+        win_data['geometry'] = bytes(main_window.saveGeometry())
+        win_data['tabs'] = [_save_tab(tab) for tab in tabbed_browser.widgets()]
         data['windows'].append(win_data)
+    return data
+
+
+def save(name):
+    """Save a named session."""
+    path = _get_session_path(name)
+
+    log.misc.debug("Saving session {} to {}...".format(name, path))
+    data = _save_all()
     log.misc.vdebug("Saving data: {}".format(data))
     try:
         with qtutils.savefile_open(path) as f:
@@ -132,6 +142,27 @@ def save(name):
         raise SessionError(e)
     else:
         completion_updater.update.emit()
+
+
+def _load_tab(new_tab, data):
+    """Load yaml data into a newly opened tab."""
+    entries = []
+    for histentry in data['history']:
+        user_data = {}
+        if 'zoom' in data:
+            user_data['zoom'] = data['zoom']
+        if 'scroll-pos' in data:
+            pos = data['scroll-pos']
+            user_data['scroll-pos'] = QPoint(pos['x'], pos['y'])
+        active = histentry.get('active', False)
+        entry = tabhistory.TabHistoryItem(
+            QUrl.fromEncoded(histentry['url'].encode('ascii')),
+            histentry['title'], active, user_data)
+        entries.append(entry)
+    try:
+        new_tab.page().load_history(entries)
+    except ValueError as e:
+        raise SessionError(e)
 
 
 def load(name):
@@ -146,28 +177,11 @@ def load(name):
     log.misc.debug("Loading session {} from {}...".format(name, path))
     for win in data['windows']:
         win_id = mainwindow.MainWindow.spawn(geometry=win['geometry'])
-        main_window = objreg.get('main-window', scope='window', window=win_id)
         tabbed_browser = objreg.get('tabbed-browser', scope='window',
                                     window=win_id)
         for tab in win['tabs']:
-            entries = []
             new_tab = tabbed_browser.tabopen()
-            for histentry in tab['history']:
-                user_data = {}
-                if 'zoom' in tab:
-                    user_data['zoom'] = tab['zoom']
-                if 'scroll-pos' in tab:
-                    pos = tab['scroll-pos']
-                    user_data['scroll-pos'] = QPoint(pos['x'], pos['y'])
-                active = histentry.get('active', False)
-                entry = tabhistory.TabHistoryItem(
-                    QUrl.fromEncoded(histentry['url'].encode('ascii')),
-                    histentry['title'], active, user_data)
-                entries.append(entry)
-            try:
-                new_tab.page().load_history(entries)
-            except ValueError as e:
-                raise SessionError(e)
+            _load_tab(new_tab, tab)
 
 
 def delete(name):
@@ -243,8 +257,8 @@ def session_delete(name):
 
 
 def init(parent=None):
-    global completion_updater
     """Initialize sessions."""
+    global completion_updater
     session_path = os.path.join(standarddir.get(QStandardPaths.DataLocation),
                                 'sessions')
     if not os.path.exists(session_path):
