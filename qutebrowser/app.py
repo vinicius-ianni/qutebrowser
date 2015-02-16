@@ -181,7 +181,7 @@ class Application(QApplication):
         log.init.debug("Initializing crashlog...")
         self._handle_segfault()
         log.init.debug("Initializing sessions...")
-        sessions.init()
+        sessions.init(self)
         log.init.debug("Initializing js-bridge...")
         js_bridge = qutescheme.JSBridge(self)
         objreg.register('js-bridge', js_bridge)

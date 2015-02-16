@@ -34,6 +34,7 @@ from qutebrowser.mainwindow.statusbar import bar
 from qutebrowser.completion import completionwidget
 from qutebrowser.keyinput import modeman
 from qutebrowser.browser import hints, downloads, downloadview
+from qutebrowser.misc import sessions
 
 
 win_id_gen = itertools.count(0)
@@ -265,6 +266,10 @@ class MainWindow(QWidget):
         # quickmark completion
         quickmark_manager = objreg.get('quickmark-manager')
         quickmark_manager.changed.connect(completer.init_quickmark_completions)
+
+        # sessions completion
+        sessions.completion_updater.update.connect(
+            completer.init_session_completion)
 
     @pyqtSlot()
     def resize_completion(self):

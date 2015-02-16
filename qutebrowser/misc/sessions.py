@@ -22,7 +22,7 @@
 import os.path
 import functools
 
-from PyQt5.QtCore import QStandardPaths, QUrl
+from PyQt5.QtCore import pyqtSignal, QStandardPaths, QUrl, QObject
 from PyQt5.QtWidgets import QApplication
 import yaml
 try:
@@ -31,9 +31,18 @@ except ImportError:
     from yaml import SafeLoader as YamlLoader, Dumper as YamlDumper
 
 from qutebrowser.browser import tabhistory
-from qutebrowser.mainwindow import mainwindow
-from qutebrowser.utils import standarddir, objreg, qtutils, log
+from qutebrowser.utils import standarddir, objreg, qtutils, log, usertypes
 from qutebrowser.commands import cmdexc, cmdutils
+
+
+completion_updater = None
+
+
+class CompletionUpdater(QObject):
+
+    """Simple QObject to be able to emit a signal if session files updated."""
+
+    update = pyqtSignal()
 
 
 class SessionError(Exception):
@@ -96,10 +105,13 @@ def save(name):
             yaml.dump(data, f, Dumper=YamlDumper, default_flow_style=False)
     except (OSError, UnicodeEncodeError, yaml.YAMLError) as e:
         raise SessionError(e)
+    else:
+        completion_updater.update.emit()
 
 
 def load(name):
     """Load a named session."""
+    from qutebrowser.mainwindow import mainwindow
     path = _get_session_path(name, check_exists=True)
     try:
         with open(path, encoding='utf-8') as f:
@@ -138,9 +150,22 @@ def delete(name):
     """Delete a session."""
     path = _get_session_path(name, check_exists=True)
     os.remove(path)
+    completion_updater.update.emit()
 
 
-@cmdutils.register()
+def list_sessions():
+    """Get a list of all session names."""
+    base_path = os.path.join(standarddir.get(QStandardPaths.DataLocation),
+                             'sessions')
+    sessions = []
+    for filename in os.listdir(base_path):
+        base, ext = os.path.splitext(filename)
+        if ext == '.yml':
+            sessions.append(base)
+    return sessions
+
+
+@cmdutils.register(completion=[usertypes.Completion.sessions])
 def session_load(name):
     """Load a session.
 
@@ -155,7 +180,8 @@ def session_load(name):
         raise cmdexc.CommandError("Error while loading session: {}".format(e))
 
 
-@cmdutils.register(name=['session-save', 'w'])
+@cmdutils.register(name=['session-save', 'w'],
+                   completion=[usertypes.Completion.sessions])
 def session_save(name='default'):
     """Save a session.
 
@@ -168,7 +194,7 @@ def session_save(name='default'):
         raise cmdexc.CommandError("Error while saving session: {}".format(e))
 
 
-@cmdutils.register(name='wq')
+@cmdutils.register(name='wq', completion=[usertypes.Completion.sessions])
 def save_and_quit(name='default'):
     """Save open pages and quit.
 
@@ -179,7 +205,7 @@ def save_and_quit(name='default'):
     QApplication.closeAllWindows()
 
 
-@cmdutils.register()
+@cmdutils.register(completion=[usertypes.Completion.sessions])
 def session_delete(name):
     """Delete a session.
 
@@ -192,9 +218,11 @@ def session_delete(name):
         raise cmdexc.CommandError("Error while deleting session: {}".format(e))
 
 
-def init():
+def init(parent=None):
+    global completion_updater
     """Initialize sessions."""
     save_manager = objreg.get('save-manager')
     save_manager.add_saveable(
         'default-session', functools.partial(save, 'default'),
         config_opt=('general', 'save-session'))
+    completion_updater = CompletionUpdater(parent)

@@ -25,6 +25,7 @@ from qutebrowser.config import config, configdata
 from qutebrowser.utils import log, qtutils, objreg
 from qutebrowser.commands import cmdutils
 from qutebrowser.completion.models import base
+from qutebrowser.misc import sessions
 
 
 class SettingSectionCompletionModel(base.BaseCompletionModel):
@@ -236,3 +237,16 @@ class QuickmarkCompletionModel(base.BaseCompletionModel):
         else:
             raise ValueError("Invalid value '{}' for match_field!".format(
                 match_field))
+
+
+class SessionCompletionModel(base.BaseCompletionModel):
+
+    """A CompletionModel filled with session names."""
+
+    # pylint: disable=abstract-method
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        cat = self.new_category("Sessions")
+        for name in sessions.list_sessions():
+            self.new_item(cat, name)
