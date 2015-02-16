@@ -21,7 +21,7 @@
 
 import functools
 
-from PyQt5.QtCore import pyqtSlot, pyqtSignal, PYQT_VERSION, Qt, QUrl
+from PyQt5.QtCore import pyqtSlot, pyqtSignal, PYQT_VERSION, Qt, QUrl, QPoint
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtNetwork import QNetworkReply, QNetworkRequest
 from PyQt5.QtWidgets import QFileDialog
@@ -73,6 +73,10 @@ class BrowserPage(QWebPage):
         self.loadStarted.connect(self.on_load_started)
         self.featurePermissionRequested.connect(
             self.on_feature_permission_requested)
+        self.saveFrameStateRequested.connect(
+            self.on_save_frame_state_requested)
+        self.restoreFrameStateRequested.connect(
+            self.on_restore_frame_state_requested)
 
     if PYQT_VERSION > 0x050300:
         # WORKAROUND (remove this when we bump the requirements to 5.3.1)
@@ -215,8 +219,11 @@ class BrowserPage(QWebPage):
 
     def load_history(self, entries):
         """Load the history from a list of TabHistoryItem objects."""
-        stream, _data = tabhistory.serialize(entries)
-        qtutils.deserialize_stream(stream, self.history())
+        stream, _data, user_data = tabhistory.serialize(entries)
+        history = self.history()
+        qtutils.deserialize_stream(stream, history)
+        for i, data in enumerate(user_data):
+            history.itemAt(i).setUserData(data)
 
     def display_content(self, reply, mimetype):
         """Display a QNetworkReply with an explicitely set mimetype."""
@@ -342,6 +349,37 @@ class BrowserPage(QWebPage):
         """
         if frame is cancelled_frame and feature == cancelled_feature:
             question.abort()
+
+    def on_save_frame_state_requested(self, frame, item):
+        """Save scroll position and zoom in history.
+
+        Args:
+            frame: The QWebFrame which gets saved.
+            item: The QWebHistoryItem to be saved.
+        """
+        if frame != self.mainFrame():
+            return
+        data = {
+            'zoom': frame.zoomFactor(),
+            'scroll-pos': frame.scrollPosition(),
+        }
+        item.setUserData(data)
+
+    def on_restore_frame_state_requested(self, frame):
+        """Restore scroll position and zoom from history.
+
+        Args:
+            frame: The QWebFrame which gets restored.
+        """
+        if frame != self.mainFrame():
+            return
+        data = self.history().currentItem().userData()
+        if data is None:
+            return
+        if 'zoom' in data:
+            frame.setZoomFactor(data['zoom'])
+        if 'scroll-pos' in data and frame.scrollPosition() == QPoint(0, 0):
+            frame.setScrollPosition(data['scroll-pos'])
 
     def userAgentForUrl(self, url):
         """Override QWebPage::userAgentForUrl to customize the user agent."""

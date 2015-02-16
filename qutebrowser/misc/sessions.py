@@ -22,7 +22,7 @@
 import os.path
 import functools
 
-from PyQt5.QtCore import pyqtSignal, QStandardPaths, QUrl, QObject
+from PyQt5.QtCore import pyqtSignal, QStandardPaths, QUrl, QObject, QPoint
 from PyQt5.QtWidgets import QApplication
 import yaml
 try:
@@ -100,7 +100,12 @@ def save(name):
                 if history.currentItemIndex() == idx:
                     item_data['active'] = True
                 tab_data['history'].append(item_data)
-            win_data['tabs'].append(tab_data)
+                user_data = item.userData()
+                if user_data is not None:
+                    pos = user_data['scroll-pos']
+                    tab_data['zoom'] = user_data['zoom']
+                    tab_data['scroll-pos'] = [pos.x(), pos.y()]
+                win_data['tabs'].append(tab_data)
         data['windows'].append(win_data)
     try:
         with qtutils.savefile_open(path) as f:
@@ -138,10 +143,15 @@ def load(name):
             entries = []
             new_tab = tabbed_browser.tabopen()
             for histentry in tab['history']:
+                user_data = {}
+                if 'zoom' in tab:
+                    user_data['zoom'] = tab['zoom']
+                if 'scroll-pos' in tab:
+                    user_data['scroll-pos'] = QPoint(*tab['scroll-pos'])
                 active = histentry.get('active', False)
                 entry = tabhistory.TabHistoryItem(
                     QUrl.fromEncoded(histentry['url'].encode('ascii')),
-                    histentry['title'], active)
+                    histentry['title'], active, user_data)
                 entries.append(entry)
             try:
                 new_tab.page().load_history(entries)

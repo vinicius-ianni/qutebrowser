@@ -37,16 +37,19 @@ class TabHistoryItem:
         url: The QUrl of this item.
         title: The title as string of this item.
         active: Whether this item is the item currently navigated to.
+        user_data: The user data for this item.
     """
 
-    def __init__(self, url, title, active=False):
+    def __init__(self, url, title, active=False, user_data=None):
         self.url = url
         self.title = title
         self.active = active
+        self.user_data = user_data
 
     def __repr__(self):
         return utils.get_repr(self, constructor=True, url=self.url,
-                              title=self.title, active=self.active)
+                              title=self.title, active=self.active,
+                              user_data=self.user_data)
 
 
 def serialize(items):
@@ -56,9 +59,10 @@ def serialize(items):
         items: An iterable of WebHistoryItems.
 
     Return:
-        A (stream, data) tuple.
+        A (stream, data, user_data) tuple.
             stream: The resetted QDataStream.
             data: The QByteArray with the raw data.
+            user_data: A list with each item's user data.
 
     Warning:
         If 'data' goes out of scope, reading from 'stream' will result in a
@@ -67,6 +71,7 @@ def serialize(items):
 
     data = QByteArray()
     stream = QDataStream(data, QIODevice.ReadWrite)
+    user_data = []
 
     current_idx = None
 
@@ -139,8 +144,12 @@ def serialize(items):
 
         ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
         ## validUserData
+        # We could restore the user data here, but we prefer to use the
+        # QWebHistoryItem API for that.
         stream.writeBool(False)
+
+        user_data.append(item.user_data)
 
     stream.device().reset()
     qtutils.check_qdatastream(stream)
-    return stream, data
+    return stream, data, user_data

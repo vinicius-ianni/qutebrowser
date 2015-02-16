@@ -41,8 +41,9 @@ class SerializeHistoryTests(unittest.TestCase):
         self.items = [Item(QUrl('http://www.heise.de/'), 'heise'),
                       Item(QUrl('http://example.com/%E2%80%A6'), 'percent',
                            active=True),
-                      Item(QUrl('http://example.com/?foo=bar'), 'arg')]
-        stream, _data = tabhistory.serialize(self.items)
+                      Item(QUrl('http://example.com/?foo=bar'), 'arg',
+                           user_data={'foo': 23, 'bar': 42})]
+        stream, _data, self.user_data = tabhistory.serialize(self.items)
         qtutils.deserialize_stream(stream, self.history)
 
     def test_count(self):
@@ -54,10 +55,15 @@ class SerializeHistoryTests(unittest.TestCase):
         for i, _item in enumerate(self.items):
             self.assertTrue(self.history.itemAt(i).isValid())
 
-    def test_userdata(self):
+    def test_no_userdata(self):
         """Check if all items have no user data."""
         for i, _item in enumerate(self.items):
             self.assertIsNone(self.history.itemAt(i).userData())
+
+    def test_userdata(self):
+        """Check if all user data has been restored to self.user_data."""
+        for item, user_data in zip(self.items, self.user_data):
+            self.assertEqual(user_data, item.user_data)
 
     def test_currentitem(self):
         """Check if the current item index was loaded correctly."""
@@ -102,10 +108,11 @@ class SerializeHistorySpecialTests(unittest.TestCase):
     def test_empty(self):
         """Check tabhistory.serialize with no items."""
         items = []
-        stream, _data = tabhistory.serialize(items)
+        stream, _data, user_data = tabhistory.serialize(items)
         qtutils.deserialize_stream(stream, self.history)
         self.assertEqual(self.history.count(), 0)
         self.assertEqual(self.history.currentItemIndex(), 0)
+        self.assertFalse(user_data)
 
 
 if __name__ == '__main__':
