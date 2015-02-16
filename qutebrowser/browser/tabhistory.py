@@ -59,6 +59,75 @@ def _encode_url(url):
     return data.decode('ascii')
 
 
+def _serialize_item(i, item, stream):
+    """Serialize a single WebHistoryItem into a QDataStream.
+
+    Args:
+        i: The index of the current item.
+        item: The WebHistoryItem to write.
+        stream: The QDataStream to write to.
+    """
+    ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
+    ## urlString
+    stream.writeQString(_encode_url(item.url))
+    ## title
+    stream.writeQString(item.title)
+    ## originalURLString
+    stream.writeQString(_encode_url(item.original_url))
+
+    ### Source/WebCore/history/HistoryItem.cpp decodeBackForwardTree
+    ## backForwardTreeEncodingVersion
+    stream.writeUInt32(BACK_FORWARD_TREE_VERSION)
+    ## size (recursion stack)
+    stream.writeUInt64(0)
+    ## node->m_documentSequenceNumber
+    # If two HistoryItems have the same document sequence number, then they
+    # refer to the same instance of a document.  Traversing history from one
+    # such HistoryItem to another preserves the document.
+    stream.writeInt64(i + 1)
+    ## size (node->m_documentState)
+    stream.writeUInt64(0)
+    ## node->m_formContentType
+    # info used to repost form data
+    stream.writeQString(None)
+    ## hasFormData
+    stream.writeBool(False)
+    ## node->m_itemSequenceNumber
+    # If two HistoryItems have the same item sequence number, then they are
+    # clones of one another.  Traversing history from one such HistoryItem to
+    # another is a no-op.  HistoryItem clones are created for parent and
+    # sibling frames when only a subframe navigates.
+    stream.writeInt64(i + 1)
+    ## node->m_referrer
+    stream.writeQString(None)
+    ## node->m_scrollPoint (x)
+    try:
+        stream.writeInt32(item.user_data['scroll-pos'].x())
+    except (KeyError, TypeError):
+        stream.writeInt32(0)
+    ## node->m_scrollPoint (y)
+    try:
+        stream.writeInt32(item.user_data['scroll-pos'].y())
+    except (KeyError, TypeError):
+        stream.writeInt32(0)
+    ## node->m_pageScaleFactor
+    try:
+        stream.writeFloat(item.user_data['zoom'])
+    except (KeyError, TypeError):
+        stream.writeFloat(1)
+    ## hasStateObject
+    # Support for HTML5 History
+    stream.writeBool(False)
+    ## node->m_target
+    stream.writeQString(None)
+
+    ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
+    ## validUserData
+    # We could restore the user data here, but we prefer to use the
+    # QWebHistoryItem API for that.
+    stream.writeBool(False)
+
+
 def serialize(items):
     """Serialize a list of QWebHistoryItems to a data stream.
 
@@ -102,66 +171,7 @@ def serialize(items):
     stream.writeInt(current_idx)
 
     for i, item in enumerate(items):
-        ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
-        ## urlString
-        stream.writeQString(_encode_url(item.url))
-        ## title
-        stream.writeQString(item.title)
-        ## originalURLString
-        stream.writeQString(_encode_url(item.original_url))
-
-        ### Source/WebCore/history/HistoryItem.cpp decodeBackForwardTree
-        ## backForwardTreeEncodingVersion
-        stream.writeUInt32(BACK_FORWARD_TREE_VERSION)
-        ## size (recursion stack)
-        stream.writeUInt64(0)
-        ## node->m_documentSequenceNumber
-        # If two HistoryItems have the same document sequence number, then they
-        # refer to the same instance of a document.  Traversing history from
-        # one such HistoryItem to another preserves the document.
-        stream.writeInt64(i + 1)
-        ## size (node->m_documentState)
-        stream.writeUInt64(0)
-        ## node->m_formContentType
-        # info used to repost form data
-        stream.writeQString(None)
-        ## hasFormData
-        stream.writeBool(False)
-        ## node->m_itemSequenceNumber
-        # If two HistoryItems have the same item sequence number, then they are
-        # clones of one another.  Traversing history from one such HistoryItem
-        # to another is a no-op.  HistoryItem clones are created for parent and
-        # sibling frames when only a subframe navigates.
-        stream.writeInt64(i + 1)
-        ## node->m_referrer
-        stream.writeQString(None)
-        ## node->m_scrollPoint (x)
-        try:
-            stream.writeInt32(item.user_data['scroll-pos'].x())
-        except (KeyError, TypeError):
-            stream.writeInt32(0)
-        ## node->m_scrollPoint (y)
-        try:
-            stream.writeInt32(item.user_data['scroll-pos'].y())
-        except (KeyError, TypeError):
-            stream.writeInt32(0)
-        ## node->m_pageScaleFactor
-        try:
-            stream.writeFloat(item.user_data['zoom'])
-        except (KeyError, TypeError):
-            stream.writeFloat(1)
-        ## hasStateObject
-        # Support for HTML5 History
-        stream.writeBool(False)
-        ## node->m_target
-        stream.writeQString(None)
-
-        ### Source/WebCore/history/qt/HistoryItemQt.cpp restoreState
-        ## validUserData
-        # We could restore the user data here, but we prefer to use the
-        # QWebHistoryItem API for that.
-        stream.writeBool(False)
-
+        _serialize_item(i, item, stream)
         user_data.append(item.user_data)
 
     stream.device().reset()
