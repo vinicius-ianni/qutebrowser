@@ -131,11 +131,20 @@ def serialize(items):
         ## node->m_referrer
         stream.writeQString(None)
         ## node->m_scrollPoint (x)
-        stream.writeInt32(0)
+        try:
+            stream.writeInt32(item.user_data['scroll-pos'].x())
+        except (KeyError, TypeError):
+            stream.writeInt32(0)
         ## node->m_scrollPoint (y)
-        stream.writeInt32(0)
+        try:
+            stream.writeInt32(item.user_data['scroll-pos'].y())
+        except (KeyError, TypeError):
+            stream.writeInt32(0)
         ## node->m_pageScaleFactor
-        stream.writeFloat(1)
+        try:
+            stream.writeFloat(item.user_data['zoom'])
+        except (KeyError, TypeError):
+            stream.writeFloat(1)
         ## hasStateObject
         # Support for HTML5 History
         stream.writeBool(False)
