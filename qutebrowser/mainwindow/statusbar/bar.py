@@ -479,5 +479,6 @@ class StatusBar(QWidget):
     def minimumSizeHint(self):
         """Set the minimum height to the text height plus some padding."""
         width = super().minimumSizeHint().width()
-        height = self.fontMetrics().height() + 3
+        height = (self.fontMetrics().height() + 3 +
+                  config.get('ui', 'statusbar-height-padding'))
         return QSize(width, height)

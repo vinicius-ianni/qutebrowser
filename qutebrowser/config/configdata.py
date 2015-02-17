@@ -261,6 +261,10 @@ DATA = collections.OrderedDict([
          "* `{title_sep}`: The string ` - ` if a title is set, empty "
          "otherwise.\n"
          "* `{id}`: The internal window ID of this window."),
+
+        ('statusbar-height-padding',
+         SettingValue(typ.Int(), '0'),
+         "Additional padding for the statusbar height."),
     )),
 
     ('network', sect.KeyValue(
@@ -438,6 +442,10 @@ DATA = collections.OrderedDict([
          "otherwise.\n"
          "* `{index}`: The index of this tab.\n"
          "* `{id}`: The internal tab ID of this tab."),
+
+        ('height-padding',
+         SettingValue(typ.Int(), '0'),
+         "Additional padding for the tabbar height."),
     )),
 
     ('storage', sect.KeyValue(

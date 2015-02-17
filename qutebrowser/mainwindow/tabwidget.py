@@ -466,6 +466,12 @@ class TabBar(QTabBar):
             new_idx = super().insertTab(idx, icon, '')
         self.set_page_title(new_idx, text)
 
+    def minimumSizeHint(self):
+        """Add configured padding to statusbar height."""
+        size = super().minimumSizeHint()
+        size.setHeight(size.height() + config.get('tabs', 'height-padding'))
+        return size
+
 
 class TabBarStyle(QCommonStyle):
 
