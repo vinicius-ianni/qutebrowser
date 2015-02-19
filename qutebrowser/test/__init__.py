@@ -22,8 +22,14 @@
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QTimer
 
+import atexit
+
 # We create a singleton QApplication here.
+
+def quit():
+    QTimer.singleShot(0, qApp.quit)
+    qApp.exec_()
 
 qApp = QApplication([])
 qApp.setApplicationName('qutebrowser')
-qApp.quit()
+atexit.register(quit)
