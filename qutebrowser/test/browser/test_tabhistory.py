@@ -60,7 +60,7 @@ class SerializeHistoryTests(unittest.TestCase):
         qtutils.deserialize_stream(stream, self.history)
 
     def tearDown(self):
-        self.page.deleteLater()
+        del self.page
 
     def test_count(self):
         """Check if the history's count was loaded correctly."""
