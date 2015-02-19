@@ -59,6 +59,9 @@ class SerializeHistoryTests(unittest.TestCase):
         stream, _data, self.user_data = tabhistory.serialize(self.items)
         qtutils.deserialize_stream(stream, self.history)
 
+    def tearDown(self):
+        self.page.deleteLater()
+
     def test_count(self):
         """Check if the history's count was loaded correctly."""
         self.assertEqual(self.history.count(), len(self.items))

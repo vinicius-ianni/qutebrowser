@@ -20,12 +20,8 @@
 """The qutebrowser test suite."""
 
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer
-
-import atexit
 
 # We create a singleton QApplication here.
 
 qApp = QApplication([])
 qApp.setApplicationName('qutebrowser')
-atexit.register(qApp.quit)
