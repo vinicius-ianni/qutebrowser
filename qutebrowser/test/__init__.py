@@ -26,10 +26,6 @@ import atexit
 
 # We create a singleton QApplication here.
 
-def quit():
-    QTimer.singleShot(0, qApp.quit)
-    qApp.exec_()
-
 qApp = QApplication([])
 qApp.setApplicationName('qutebrowser')
-atexit.register(quit)
+atexit.register(qApp.quit)
