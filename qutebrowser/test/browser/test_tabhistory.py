@@ -61,8 +61,8 @@ class SerializeHistoryTests(unittest.TestCase):
         qtutils.deserialize_stream(stream, self.history)
 
     def tearDown(self):
+        sip.delete(self.history)
         sip.delete(self.page)
-        self.page = None
 
     def test_count(self):
         """Check if the history's count was loaded correctly."""
@@ -115,6 +115,10 @@ class SerializeHistorySpecialTests(unittest.TestCase):
         self.page = QWebPage()
         self.history = self.page.history()
         self.assertEqual(self.history.count(), 0)
+
+    def tearDown(self):
+        sip.delete(self.history)
+        sip.delete(self.page)
 
     def test_no_active_item(self):
         """Check tabhistory.serialize with no active item."""
