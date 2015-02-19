@@ -19,6 +19,7 @@
 
 """Tests for webelement.tabhistory."""
 
+import sip
 import unittest
 
 from PyQt5.QtCore import QUrl, QPoint
@@ -60,7 +61,8 @@ class SerializeHistoryTests(unittest.TestCase):
         qtutils.deserialize_stream(stream, self.history)
 
     def tearDown(self):
-        del self.page
+        sip.delete(self.page)
+        self.page = None
 
     def test_count(self):
         """Check if the history's count was loaded correctly."""
